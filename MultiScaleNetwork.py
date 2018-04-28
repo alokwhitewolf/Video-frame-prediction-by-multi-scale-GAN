@@ -82,35 +82,41 @@ class SingleScaleDiscriminator(Chain):
         self.k_sizes = k_sizes
         self.fc_sizes = fc_sizes
         net = []
-        with self.init_scope():
-            for i in range(len(k_sizes) - 1):
 
-                net += [('conv' + str(i), L.Convolution2D(self.fmaps[i], self.fmaps[i + 1],
-                                                          self.k_sizes[i], stride=1,
-                                                          pad=padding_size(self.k_sizes[i])))]
-            for j in range(len(fc_sizes)):
-                net += [('fc'+str(j), L.Linear(out_size=fc_sizes[j]))]
+        for i in range(len(k_sizes)):
+
+            net += [('conv' + str(i), L.Convolution2D(self.fmaps[i], self.fmaps[i + 1],
+                                                      self.k_sizes[i], stride=1))]
+        print(net)
+        for j in range(len(fc_sizes)):
+            net += [('fc' + str(j), L.Linear(in_size=None, out_size=fc_sizes[j]))]
+        print(net)
+        with self.init_scope():
+            for name, layer in net:
+                setattr(self, name, layer)
         self.net = net
 
     def __call__(self, x, *args, **kwargs):
         for i in range(len(self.net)-1):
+            print(x.shape)
             x = getattr(self, self.net[i][0])(x)
             x = F.relu(x)
-
+        print(x.shape)
         x = getattr(self, self.net[-1][0])(x)
         x = F.sigmoid(x)
+        print(x)
         return x
 
+
 class Model(Chain):
-    def __init__(self, ):
+    def __init__(self, G_fmaps, G_k_sizes, seq_len,
+                 D_fmaps, D_k_sizes, D_fc_sizes):
         pass
 
 
 if __name__ == "__main__":
     HIST_LEN = 4
-    gen = SingleScaleGenerator(input_size = 4, fmaps = [3*(HIST_LEN), 128, 256, 128, 3], k_sizes =[3, 3, 3, 3]
-                               , seq_len=HIST_LEN, lowest_scale=True)
-    inp1 = Variable(np.random.randn(1,12,4,4).astype(np.float32))
-    inp2 = Variable(np.random.randn(1,3,4,4).astype(np.float32))
-    gen(inp1,scaled_input=inp2)
-
+    gen = SingleScaleDiscriminator(fmaps=[3, 64, 128, 128], k_sizes=[3, 3, 3], fc_sizes=[1024, 512, 1])
+    inp1 = Variable(np.random.randn(1, 3, 8, 8).astype(np.float32))
+    #inp2 = Variable(np.random.randn(1, 3, 4, 4).astype(np.float32))
+    gen(inp1)
