@@ -1,11 +1,13 @@
 from chainer import Chain
 import chainer.functions as F
 import chainer.links as L
+import numpy as np
+from chainer import Variable
 from chainer.functions import resize_images
 
 
 def upscale(img, factor):
-    # TODO: Saling of images
+    # TODO: Scaling of images
     pass
 
 
@@ -16,7 +18,7 @@ def padding_size(k_size):
              maps with kernel size = k_size
     """
     assert k_size % 2 == 1, "Kernel Size must be odd"
-    return (k_size + 1) / 2
+    return int((k_size - 1) / 2)
 
 
 class SingleScaleGenerator(Chain):
@@ -36,9 +38,10 @@ class SingleScaleGenerator(Chain):
         super(SingleScaleGenerator, self).__init__()
 
         net = []
-        for i in range(len(self.k_sizes) - 1):
-            net += [('conv' + str(i), L.Convolution2D(self.fmaps[i], self.fmaps[i + 1],
-                                                      self.k_sizes[i], padding_size(self.k_sizes[i])))]
+        for i in range(len(self.k_sizes)):
+            net += [('conv' + str(i), L.Convolution2D(self.fmaps[i + 1],
+                                                      self.k_sizes[i], stride=1,
+                                                      pad=padding_size(self.k_sizes[i])))]
         with self.init_scope():
             for name, layer in net:
                 setattr(self, name, layer)
@@ -50,18 +53,16 @@ class SingleScaleGenerator(Chain):
 
         if not self.lowest_scale:
             scaled_input = kwargs['scaled_input']
-
             # Concatenate scaled image from prev Generator Scale
             seq_input = F.concat((seq_input, scaled_input), 1)
 
         # Forward Prop
-        for i in range(len(self.net)):
+        for i in range(len(self.net)-1):
             seq_input = getattr(self, self.net[i][0])(seq_input)
+            seq_input = F.relu(seq_input)
 
-            if i == len(self.net) - 1:
-                seq_input = F.tanh(seq_input)
-            else:
-                seq_input = F.relu(seq_input)
+        seq_input = getattr(self, self.net[-1][0])(seq_input)
+        seq_input = F.tanh(seq_input)
 
         output = seq_input
         if not self.lowest_scale:
@@ -83,8 +84,10 @@ class SingleScaleDiscriminator(Chain):
         net = []
         with self.init_scope():
             for i in range(len(k_sizes) - 1):
+
                 net += [('conv' + str(i), L.Convolution2D(self.fmaps[i], self.fmaps[i + 1],
-                                                          self.k_sizes[i], padding_size(self.k_sizes[i])))]
+                                                          self.k_sizes[i], stride=1,
+                                                          pad=padding_size(self.k_sizes[i])))]
             for j in range(len(fc_sizes)):
                 net += [('fc'+str(j), L.Linear(out_size=fc_sizes[j]))]
         self.net = net
@@ -96,29 +99,18 @@ class SingleScaleDiscriminator(Chain):
 
         x = getattr(self, self.net[-1][0])(x)
         x = F.sigmoid(x)
+        return x
 
-class Generator(Chain):
-    def __init__(self, size, scale_layer_fmaps,
-                 scale_kernel_sizes, input_seq_len,
-                 output_seq_len=1):
-        """
-
-        :param size:
-        :param scale_layer_fmaps:
-        :param scale_kernel_sizes:
-        :param input_seq_len:
-        :param output_seq_len:
-        """
-        super(Generator, self).__init__()
-        self.img_size = size
-        self.scale_layer_fmaps = scale_layer_fmaps
-        self.scale_kernel_sizes = scale_kernel_sizes
-        self.input_seq_len = input_seq_len
-        self.output_seq_len = output_seq_len
-        with self.init_scope():
-            # TODO: fill
-            pass
-
-    def __call__(self, *args, **kwargs):
-        # TODO : Fill
+class Model(Chain):
+    def __init__(self, ):
         pass
+
+
+if __name__ == "__main__":
+    HIST_LEN = 4
+    gen = SingleScaleGenerator(input_size = 4, fmaps = [3*(HIST_LEN), 128, 256, 128, 3], k_sizes =[3, 3, 3, 3]
+                               , seq_len=HIST_LEN, lowest_scale=True)
+    inp1 = Variable(np.random.randn(1,12,4,4).astype(np.float32))
+    inp2 = Variable(np.random.randn(1,3,4,4).astype(np.float32))
+    gen(inp1,scaled_input=inp2)
+
