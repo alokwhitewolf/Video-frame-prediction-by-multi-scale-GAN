@@ -4,6 +4,8 @@ import chainer.links as L
 import numpy as np
 from chainer import Variable
 from chainer.functions import resize_images
+import cupy as cp
+
 
 
 def upscale(img, factor):
@@ -22,7 +24,7 @@ def padding_size(k_size):
 
 
 class SingleScaleGenerator(Chain):
-    def __init__(self, input_size, fmaps, k_sizes, seq_len, lowest_scale=False):
+    def __init__(self, fmaps, k_sizes, lowest_scale=False):
         """
         :param input_size:
         :param fmaps:
@@ -30,10 +32,10 @@ class SingleScaleGenerator(Chain):
         :param seq_len:
         :param lowest_scale:
         """
-        self.input_size = input_size
+        #self.input_size = input_size
         self.fmaps = fmaps
         self.k_sizes = k_sizes
-        self.seq_len = seq_len
+        #self.seq_len = seq_len
         self.lowest_scale = lowest_scale
         super(SingleScaleGenerator, self).__init__()
 
@@ -47,17 +49,24 @@ class SingleScaleGenerator(Chain):
                 setattr(self, name, layer)
         self.net = net
 
-    def __call__(self, seq_input, *args, **kwargs):
-        assert seq_input.shape[2] == seq_input.shape[3], "Images must be square"
-        assert seq_input.shape[2] == self.input_size, "Unexpected input shape"
+    def __call__(self, seq_input, scaled_input = None, *args, **kwargs):
+        """
+
+        :param seq_input:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        #assert seq_input.shape[2] == seq_input.shape[3], "Images must be square"
+        #assert seq_input.shape[2] == self.input_size, "Unexpected input shape"
 
         if not self.lowest_scale:
-            scaled_input = kwargs['scaled_input']
             # Concatenate scaled image from prev Generator Scale
             seq_input = F.concat((seq_input, scaled_input), 1)
 
         # Forward Prop
-        for i in range(len(self.net)-1):
+        for i in range(len(self.net) - 1):
+            print(i)
             seq_input = getattr(self, self.net[i][0])(seq_input)
             seq_input = F.relu(seq_input)
 
@@ -84,39 +93,58 @@ class SingleScaleDiscriminator(Chain):
         net = []
 
         for i in range(len(k_sizes)):
-
             net += [('conv' + str(i), L.Convolution2D(self.fmaps[i], self.fmaps[i + 1],
                                                       self.k_sizes[i], stride=1))]
-        print(net)
         for j in range(len(fc_sizes)):
             net += [('fc' + str(j), L.Linear(in_size=None, out_size=fc_sizes[j]))]
-        print(net)
         with self.init_scope():
             for name, layer in net:
                 setattr(self, name, layer)
         self.net = net
 
     def __call__(self, x, *args, **kwargs):
-        for i in range(len(self.net)-1):
-            print(x.shape)
+        for i in range(len(self.net) - 1):
+            #print(self.net[i][0])
             x = getattr(self, self.net[i][0])(x)
             x = F.relu(x)
-        print(x.shape)
         x = getattr(self, self.net[-1][0])(x)
         x = F.sigmoid(x)
-        print(x)
         return x
 
 
 class Model(Chain):
-    def __init__(self, G_fmaps, G_k_sizes, seq_len,
-                 D_fmaps, D_k_sizes, D_fc_sizes):
+    def __init__(self, g_fmaps, g_k_sizes, seq_len,
+                 d_fmaps, d_k_sizes, d_fc_sizes):
+        """
+
+        :param g_fmaps:
+        :param g_k_sizes:
+        :param seq_len:
+        :param d_fmaps:
+        :param d_k_sizes:
+        :param d_fc_sizes:
+        """
+        super(Model, self).__init__()
+        self.g_fmaps = g_fmaps
+        self.g_k_sizes = g_k_sizes
+        self.seq_len = seq_len
+        self.d_fmaps = d_fmaps
+        self.d_k_sizes = d_k_sizes
+        self.d_fc_sizes = d_fc_sizes
+
+        assert len(d_fmaps) == len(d_k_sizes) == len(d_fmaps) \
+               == len(d_k_sizes) == len(d_fc_sizes), "Check len of fmaps, k_sizes"
+
+        no_of_scales = len(self.g_fmaps)
+        for i in range(no_of_scales):
+            setattr(self, "D" + str(i + 1),
+                    SingleScaleDiscriminator(fmaps=d_fmaps[i], k_sizes=d_k_sizes[i],
+                                             fc_sizes=d_fc_sizes[i]))
+            setattr(self, "G" + str(i + 1),
+                    SingleScaleGenerator(input_size=2 ** (i + 2), fmaps=g_fmaps[i],
+                                         k_sizes=g_k_sizes[i], seq_len=seq_len,
+                                         lowest_scale=(i == 0)))
+
+    def __call__(self, x, *args, **kwargs):
+        # x shape = [n, 15, 32, 32]
         pass
-
-
-if __name__ == "__main__":
-    HIST_LEN = 4
-    gen = SingleScaleDiscriminator(fmaps=[3, 64, 128, 128], k_sizes=[3, 3, 3], fc_sizes=[1024, 512, 1])
-    inp1 = Variable(np.random.randn(1, 3, 8, 8).astype(np.float32))
-    #inp2 = Variable(np.random.randn(1, 3, 4, 4).astype(np.float32))
-    gen(inp1)
