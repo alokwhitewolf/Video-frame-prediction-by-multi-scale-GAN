@@ -16,3 +16,7 @@ def gradient_loss(generated, truth):
     d_ty = F.convolution_2d(truth, wy)
 
     return F.sum(F.absolute(d_gx - d_tx)) + F.sum(F.absolute(d_gy - d_ty))
+
+
+def l2_loss(generated, truth):
+    return F.sum(F.squared_difference(generated, truth))
