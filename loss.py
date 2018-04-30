@@ -1,12 +1,13 @@
 import cupy as cp
 import chainer.functions as F
+import numpy as np
 
 
-
-def gdl(generated, truth):
+def gradient_loss(generated, truth):
     xp = cp.get_array_module(generated.data)
-    wx = xp.array([1, -1], ndmin=4).astype("f")
-    wy = xp.array([[1], [-1]], ndmin=4).astype("f")
+    n, c, h, w = generated.shape
+    wx = xp.array([[[1, -1]]]*c, ndmin=4).astype(xp.float32)
+    wy = xp.array([[[1], [-1]]]*c, ndmin=4).astype(xp.float32)
 
     d_gx = F.convolution_2d(generated, wx)
     d_gy = F.convolution_2d(generated, wy)
@@ -15,4 +16,3 @@ def gdl(generated, truth):
     d_ty = F.convolution_2d(truth, wy)
 
     return F.sum(F.absolute(d_gx - d_tx)) + F.sum(F.absolute(d_gy - d_ty))
-
