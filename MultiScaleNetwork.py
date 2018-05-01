@@ -7,12 +7,6 @@ from chainer.functions import resize_images
 import cupy as cp
 
 
-
-def upscale(img, factor):
-    # TODO: Scaling of images
-    pass
-
-
 def padding_size(k_size):
     """
     :param k_size: size of the conv kernel
@@ -26,16 +20,13 @@ def padding_size(k_size):
 class SingleScaleGenerator(Chain):
     def __init__(self, fmaps, k_sizes, lowest_scale=False):
         """
-        :param input_size:
         :param fmaps:
         :param k_sizes:
-        :param seq_len:
         :param lowest_scale:
         """
-        #self.input_size = input_size
+
         self.fmaps = fmaps
         self.k_sizes = k_sizes
-        #self.seq_len = seq_len
         self.lowest_scale = lowest_scale
         super(SingleScaleGenerator, self).__init__()
 
@@ -49,7 +40,7 @@ class SingleScaleGenerator(Chain):
                 setattr(self, name, layer)
         self.net = net
 
-    def __call__(self, seq_input, scaled_input = None, *args, **kwargs):
+    def __call__(self, seq_input, prev_input=None, *args, **kwargs):
         """
 
         :param seq_input:
@@ -57,11 +48,9 @@ class SingleScaleGenerator(Chain):
         :param kwargs:
         :return:
         """
-        #assert seq_input.shape[2] == seq_input.shape[3], "Images must be square"
-        #assert seq_input.shape[2] == self.input_size, "Unexpected input shape"
-
         if not self.lowest_scale:
             # Concatenate scaled image from prev Generator Scale
+            scaled_input = resize_images(prev_input, (int(seq_input.shape[2]),int(seq_input.shape[3])))
             seq_input = F.concat((seq_input, scaled_input), 1)
 
         # Forward Prop
@@ -104,7 +93,6 @@ class SingleScaleDiscriminator(Chain):
 
     def __call__(self, x, *args, **kwargs):
         for i in range(len(self.net) - 1):
-            #print(self.net[i][0])
             x = getattr(self, self.net[i][0])(x)
             x = F.relu(x)
         x = getattr(self, self.net[-1][0])(x)
@@ -112,22 +100,20 @@ class SingleScaleDiscriminator(Chain):
         return x
 
 
-class Model(Chain):
-    def __init__(self, g_fmaps, g_k_sizes, seq_len,
+class AdversarialModel(Chain):
+    def __init__(self, g_fmaps, g_k_sizes,
                  d_fmaps, d_k_sizes, d_fc_sizes):
         """
 
         :param g_fmaps:
         :param g_k_sizes:
-        :param seq_len:
         :param d_fmaps:
         :param d_k_sizes:
         :param d_fc_sizes:
         """
-        super(Model, self).__init__()
+        super(AdversarialModel, self).__init__()
         self.g_fmaps = g_fmaps
         self.g_k_sizes = g_k_sizes
-        self.seq_len = seq_len
         self.d_fmaps = d_fmaps
         self.d_k_sizes = d_k_sizes
         self.d_fc_sizes = d_fc_sizes
@@ -141,10 +127,10 @@ class Model(Chain):
                     SingleScaleDiscriminator(fmaps=d_fmaps[i], k_sizes=d_k_sizes[i],
                                              fc_sizes=d_fc_sizes[i]))
             setattr(self, "G" + str(i + 1),
-                    SingleScaleGenerator(input_size=2 ** (i + 2), fmaps=g_fmaps[i],
-                                         k_sizes=g_k_sizes[i], seq_len=seq_len,
+                    SingleScaleGenerator(fmaps=g_fmaps[i],
+                                         k_sizes=g_k_sizes[i],
                                          lowest_scale=(i == 0)))
 
     def __call__(self, x, *args, **kwargs):
         # x shape = [n, 15, 32, 32]
-        pass
+        history, frame = x
