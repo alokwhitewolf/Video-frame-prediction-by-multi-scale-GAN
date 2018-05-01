@@ -3,6 +3,7 @@ from chainer.training import StandardUpdater
 import cupy as cp
 from loss import l2_loss, gradient_loss, loss_target1, loss_target0
 from chainer.functions import resize_images
+from chainer import report
 
 # the percentage of the adversarial loss to use in the combined loss
 # LAM_ADV = 0.05
@@ -32,7 +33,6 @@ class Updater(StandardUpdater):
 		for network_name in self._optimizers:
 			self._optimizers[network_name].setup(getattr(self.model, network_name))
 
-
 	def update_core(self):
 		data = self.converter(self.get_iterator('main').next(), self.device)
 
@@ -61,9 +61,18 @@ class Updater(StandardUpdater):
 			dis_outplut_real = getattr(self.model, "D"+str(i))(downscaled_gt)
 
 			loss_dis = loss_target1(dis_outplut_real) + loss_target0(dis_output_fake)
-			loss_gen = self.LAM_ADV*loss_target1(dis_output_fake) + \
+
+			loss_adv = loss_target1(dis_output_fake)
+			loss_gen = self.LAM_ADV*loss_adv + \
 			           self.LAM_GDL*loss_gdl + \
 			           self.LAM_LP*loss_l2
+
+			report({'lossD'+str(i): loss_dis}, getattr(self.model, "D"+str(i)))
+			report({'lossG'+str(i)+'_adv': loss_adv}, getattr(self.model, "G"+str(i)))
+			report({'lossG'+str(i)+'_l2': loss_l2}, getattr(self.model, "G"+str(i)))
+			report({'lossG'+str(i)+'_gdl': loss_gdl}, getattr(self.model, "G"+str(i)))
+			report({'lossG'+str(i)+'_total': loss_dis}, getattr(self.model, "G"+str(i)))
+
 			self._optimizers["D" + str(i)].zero_grads()
 			loss_dis.backwards()
 			self._optimizers["D" + str(i)].update()
@@ -71,5 +80,3 @@ class Updater(StandardUpdater):
 			self._optimizers["G" + str(i)].zero_grads()
 			loss_gen.backwards()
 			self._optimizers["G" + str(i)].update()
-
-
