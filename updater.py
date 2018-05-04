@@ -4,17 +4,17 @@ import cupy as cp
 from loss import l2_loss, gradient_loss, loss_target1, loss_target0
 from chainer.functions import resize_images
 from chainer import report
-
-# the percentage of the adversarial loss to use in the combined loss
-# LAM_ADV = 0.05
-# the percentage of the lp loss to use in the combined loss
-# LAM_LP = 1
-# the percentage of the GDL loss to use in the combined loss
-# LAM_GDL = 1
+from chainer import Variable
+from chainer.functions import split_axis
+from MultiScaleNetwork import MultiScaleGenerator, MultiScaleDiscriminator
 
 
 class Updater(StandardUpdater):
-	def __init__(self, iterators, optimizers, device=0, *args, **kwargs):
+	def __init__(self, iterators, optimizers, GeneratorNetwork, DiscriminatorNetwork,
+	             g_fmaps, g_k_sizes,
+	             d_fmaps, d_k_sizes, d_fc_sizes,
+	             device=0,
+	             *args, **kwargs):
 		"""
 
 		:param iterators:
@@ -23,25 +23,32 @@ class Updater(StandardUpdater):
 		:param args:
 		:param kwargs:
 		"""
+
+		self.GenNetwork = MultiScaleGenerator(g_fmaps, g_k_sizes)
+		self.DisNetwork = MultiScaleDiscriminator(d_fmaps, d_k_sizes, d_fc_sizes)
+
+		super(Updater, self).__init__(iterators, optimizers)
 		params = kwargs.pop('params')
-		self.model = kwargs.pop('model')
 		self.device = device
 		self.LAM_ADV = params['LAM_ADV']
 		self.LAM_LP = params['LAM_LP']
 		self.LAM_GDL = params['LAM_GDL']
-		super(Updater, self).__init__(iterators, optimizers, *args, **kwargs)
-		for network_name in self._optimizers:
-			self._optimizers[network_name].setup(getattr(self.model, network_name))
+
+		self._optimizers['GeneratorNetwork'].setup(self.GenNetwork)
+		self._optimizers['DiscriminatorNetwork'].setup(self.DisNetwork)
+
 
 	def update_core(self):
-		data = self.converter(self.get_iterator('main').next(), self.device)
-
+		data = Variable(self.converter(self.get_iterator('main').next(), self.device))
+		print(self.device)
 		xp = cp.get_array_module(data)
 		n, c, h, w = data.shape
-		seq, gt = xp.split(data, [c-3], 1)
+		seq, gt = split_axis(data, [c-3], 1)
 		del data
 
 		output = None
+		total_loss_dis_adv = 0
+		total_loss_gen_adv = 0
 		for i in range(1, 5):
 			if i != 4:
 				downscaled_gt = resize_images(gt, (int(h / 2 ** (4 - i)),
@@ -52,31 +59,40 @@ class Updater(StandardUpdater):
 				downscaled_gt = gt
 				downscaled_seq = seq
 
-			output = getattr(self.model, "G"+str(i))(downscaled_seq,
+			output = self.GenNetwork.singleforward(i, downscaled_seq,
 			                                         output)
-			loss_l2 = l2_loss(output, downscaled_gt)
-			loss_gdl = gradient_loss(output, downscaled_gt)
+			dis_output_fake = self.DisNetwork.singleforward(i,output)
+			dis_outplut_real = self.DisNetwork.singleforward(i, downscaled_gt)
 
-			dis_output_fake = getattr(self.model, "D"+str(i))(output)
-			dis_outplut_real = getattr(self.model, "D"+str(i))(downscaled_gt)
+			loss_dis = (loss_target1(dis_outplut_real) + loss_target0(dis_output_fake)) / 2
 
-			loss_dis = loss_target1(dis_outplut_real) + loss_target0(dis_output_fake)
+			loss_gen = loss_target1(dis_output_fake)
 
-			loss_adv = loss_target1(dis_output_fake)
-			loss_gen = self.LAM_ADV*loss_adv + \
-			           self.LAM_GDL*loss_gdl + \
-			           self.LAM_LP*loss_l2
+			total_loss_dis_adv += loss_dis
+			total_loss_gen_adv += loss_gen
 
-			report({'lossD'+str(i): loss_dis}, getattr(self.model, "D"+str(i)))
-			report({'lossG'+str(i)+'_adv': loss_adv}, getattr(self.model, "G"+str(i)))
-			report({'lossG'+str(i)+'_l2': loss_l2}, getattr(self.model, "G"+str(i)))
-			report({'lossG'+str(i)+'_gdl': loss_gdl}, getattr(self.model, "G"+str(i)))
-			report({'lossG'+str(i)+'_total': loss_dis}, getattr(self.model, "G"+str(i)))
+		loss_l2 = l2_loss(output, gt)
+		loss_gdl = gradient_loss(output, gt)
 
-			self._optimizers["D" + str(i)].zero_grads()
-			loss_dis.backwards()
-			self._optimizers["D" + str(i)].update()
+		composite_gen_loss = self.LAM_LP*loss_l2 + self.LAM_GDL*loss_gdl + self.LAM_ADV*total_loss_gen_adv
+		report({'L2Loss':loss_l2},self.GenNetwork)
+		report({'GDL':loss_gdl},self.GenNetwork)
+		report({'AdvLoss':total_loss_gen_adv},self.GenNetwork)
+		report({'DisLoss':total_loss_dis_adv},self.DisNetwork)
+		report({'CompositeGenLoss':composite_gen_loss},self.GenNetwork)
 
-			self._optimizers["G" + str(i)].zero_grads()
-			loss_gen.backwards()
-			self._optimizers["G" + str(i)].update()
+		self.DisNetwork.cleargrads()
+		self.GenNetwork.cleargrads()
+		composite_gen_loss.backward()
+		self._optimizers["GeneratorNetwork"].update()
+
+		self.DisNetwork.cleargrads()
+		self.GenNetwork.cleargrads()
+		total_loss_dis_adv.backward()
+		self._optimizers["DiscriminatorNetwork"].update()
+
+
+
+
+
+
