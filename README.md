@@ -1,6 +1,6 @@
 # Video frame prediction by multi scale GAN
 ![Image](media/best.gif)
-<br>This is a <a href="https://chainer.org/">Chainer</a> implementation of <a href="https://arxiv.org/pdf/1511.05440.pdf">"Deep Multi Scale Video Prediction Beyond Mean Square Error"</a>.
+<br>This is a <a href="https://chainer.org/">Chainer</a> implementation of <a href="https://arxiv.org/pdf/1511.05440.pdf">"Deep Multi Scale Video Prediction Beyond Mean Square Error"</a> by Mathieu, Couprie & LeCun.
 The neural network is trained to predict predict upcoming future frame of the video given past few frames. This project has been influenced by the Tensorflow <a href="https://github.com/dyelax/Adversarial_Video_Generation">implementation</a>
 of the same paper by dyelax. 
 
@@ -18,8 +18,21 @@ loss over the data even id v_avg has very low probability. In case of l1 norm, t
 <br>
 ![Image](media/bimodal-distribution-2.jpg)
 
-GANs come into rescue because of the inherent nature of the way it's trained. 
-<incomplete!! I am writing the README if you are reading this>
+GANs come into rescue because of the inherent nature of the way it's trained. The objective of the Generator is to produce a realistic estimate of the prediction while the Discriminator is being trained to weed out unrealistic examples which include blurring because of L2 Loss. So, we use a composite loss function, which is a combination of L2 loss and the GAN objective to train our model in order to produce a somewhat realistic output.
+
+## Network Architecture
+![Image](media/2.png)
+
+A multiscale approach is taken. We train a combination of Generators and Discriminators at different scales so that they 
+learn internal representations at various scales. The estimate at a lower scale is used as an input for the network at a higher scale, almost resembling Laplacian Pyramids. 
+
+The computation graph for predicting the next frame - 
+![Image](media/index2.png)
+
+## Some interesting observations
+![Image](media/giphy2.gif)
+
+I found it fascinating how the pac man at the top corner took a sharp turn in order to folow the path. 
 ## How to run
 ### Dependencies
 
