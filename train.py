@@ -38,16 +38,16 @@ def main(resume, gpu, load_path, data_path):
 	log_keys = ['epoch', 'iteration', 'GeneratorNetwork/L2Loss', 'GeneratorNetwork/GDL',
 	            'DiscriminatorNetwork/DisLoss', 'GeneratorNetwork/CompositeGenLoss']
 	print_keys = ['GeneratorNetwork/CompositeGenLoss','DiscriminatorNetwork/DisLoss']
-	trainer.extend(extensions.LogReport(keys=log_keys, trigger=(1, 'iteration')))
-	trainer.extend(extensions.PrintReport(print_keys), trigger=(1, 'iteration'))
-	trainer.extend(extensions.PlotReport(['DiscriminatorNetwork/DisLoss'], 'iteration', (1, 'iteration'), file_name="DisLoss.png"))
-	trainer.extend(extensions.PlotReport(['GeneratorNetwork/CompositeGenLoss'], 'iteration', (1, 'iteration'), file_name="GenLoss.png"))
-	trainer.extend(extensions.PlotReport(['GeneratorNetwork/AdvLoss'], 'iteration', (1, 'iteration'), file_name="AdvGenLoss.png"))
-	trainer.extend(extensions.PlotReport(['GeneratorNetwork/AdvLoss','DiscriminatorNetwork/DisLoss'], 'iteration', (1, 'iteration'), file_name="AdversarialLosses.png"))
-	trainer.extend(extensions.PlotReport(['GeneratorNetwork/L2Loss'], 'iteration', (1, 'iteration'),file_name="L2Loss.png"))
-	trainer.extend(extensions.PlotReport(['GeneratorNetwork/GDL'], 'iteration', (1, 'iteration'),file_name="GDL.png"))
+	trainer.extend(extensions.LogReport(keys=log_keys, trigger=(10, 'iteration')))
+	trainer.extend(extensions.PrintReport(print_keys), trigger=(10, 'iteration'))
+	trainer.extend(extensions.PlotReport(['DiscriminatorNetwork/DisLoss'], 'iteration', (10, 'iteration'), file_name="DisLoss.png"))
+	trainer.extend(extensions.PlotReport(['GeneratorNetwork/CompositeGenLoss'], 'iteration', (10, 'iteration'), file_name="GenLoss.png"))
+	trainer.extend(extensions.PlotReport(['GeneratorNetwork/AdvLoss'], 'iteration', (10, 'iteration'), file_name="AdvGenLoss.png"))
+	trainer.extend(extensions.PlotReport(['GeneratorNetwork/AdvLoss','DiscriminatorNetwork/DisLoss'], 'iteration', (10, 'iteration'), file_name="AdversarialLosses.png"))
+	trainer.extend(extensions.PlotReport(['GeneratorNetwork/L2Loss'], 'iteration', (10, 'iteration'),file_name="L2Loss.png"))
+	trainer.extend(extensions.PlotReport(['GeneratorNetwork/GDL'], 'iteration', (10, 'iteration'),file_name="GDL.png"))
 
-	trainer.extend(extensions.ProgressBar(update_interval=1))
+	trainer.extend(extensions.ProgressBar(update_interval=10))
 	if resume:
 		# Resume from a snapshot
 		chainer.serializers.load_npz(load_path, trainer)

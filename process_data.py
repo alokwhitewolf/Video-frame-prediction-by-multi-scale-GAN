@@ -10,7 +10,7 @@ def process_training_data(num_clips):
 	"""
 	Processes random training clips from the full training data. Saves to TRAIN_DIR_CLIPS by
 	default.
-	:param num_clips: The number of clips to process. Default = 5000000 (set in __main__).
+	:param num_clips: The number of clips to process. Default = 5000000 
 	:warning: This can take a couple of hours to complete with large numbers of clips.
 	"""
 	num_prev_clips = len(glob(c.TRAIN_DIR_CLIPS + '*'))
@@ -25,6 +25,6 @@ def process_training_data(num_clips):
 
 if __name__ == '__main__':
 	parser = ap.ArgumentParser()
-	parser.add_argument('--clip_num', "-n", default=5, help="Number of clips", type=int)
+	parser.add_argument('--clip_num', "-n", default=500000, help="Number of clips", type=int)
 	args = vars(parser.parse_args())
 	process_training_data(args['clip_num'])
