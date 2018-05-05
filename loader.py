@@ -1,12 +1,18 @@
 from chainer.dataset import dataset_mixin
 import glob
 import numpy as np
-from chainer.iterators import SerialIterator
 import six
+
+# Custom Chainer Dataset class for the purpose of the project
+# Reads and returns the .npz files when queried.
 
 
 class Dataset(dataset_mixin.DatasetMixin):
 	def __init__(self, path):
+		"""
+
+		:param path: path where .npz training files are located
+		"""
 		self._paths = glob.glob(path+"*.npz")
 		self._len = len(self._paths)
 
@@ -25,7 +31,10 @@ class Dataset(dataset_mixin.DatasetMixin):
 	def get_example(self, i):
 		"""
 
-		:param i:
+		:param i: index
+		:
+		return : ith example of the dataset.
 		"""
 		file_path = self._paths[i % self._len]
-		return np.load(file_path)['arr_0'][0]
+		return np.load(file_path)['arr_0'][0].astype(np.float32)
+

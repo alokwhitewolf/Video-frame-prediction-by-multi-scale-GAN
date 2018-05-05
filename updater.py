@@ -11,21 +11,21 @@ from MultiScaleNetwork import MultiScaleGenerator, MultiScaleDiscriminator
 
 class Updater(StandardUpdater):
 	def __init__(self, iterators, optimizers, GeneratorNetwork, DiscriminatorNetwork,
-	             g_fmaps, g_k_sizes,
-	             d_fmaps, d_k_sizes, d_fc_sizes,
-	             device=0,
-	             *args, **kwargs):
+	             device=0,**kwargs):
 		"""
 
-		:param iterators:
-		:param optimizers:
-		:param device:
-		:param args:
-		:param kwargs:
+		:param iterators: iterator to be passed to the Updater
+		:param optimizers: Dict of optimizers for the Gen and Dis network
+						{'GeneratorNetwork':, 'DiscriminatorNetwork':}
+		:param GeneratorNetwork: the multiscaleGen network that is to be trained
+		:param DiscriminatorNetwork: the multiscale Dis network that is to to be trained
+		:param device: whther to use gpu or not
+		:param kwargs:  dict params containing the loss factors
+					param = {LAM_ADV:, LAM_LP:, LAM_GDL}
 		"""
 
-		self.GenNetwork = MultiScaleGenerator(g_fmaps, g_k_sizes)
-		self.DisNetwork = MultiScaleDiscriminator(d_fmaps, d_k_sizes, d_fc_sizes)
+		self.GenNetwork = GeneratorNetwork
+		self.DisNetwork = DiscriminatorNetwork
 
 		super(Updater, self).__init__(iterators, optimizers)
 		params = kwargs.pop('params')
@@ -39,17 +39,21 @@ class Updater(StandardUpdater):
 
 
 	def update_core(self):
+		#convert incoming array into variables with either cpu/gpu compatibility
 		data = Variable(self.converter(self.get_iterator('main').next(), self.device))
-		print(self.device)
-		xp = cp.get_array_module(data)
+
 		n, c, h, w = data.shape
+		# Get the ground truth and the sequential inout that is to be fed to the
+		# network
 		seq, gt = split_axis(data, [c-3], 1)
+		# get rid of memory
 		del data
 
 		output = None
 		total_loss_dis_adv = 0
 		total_loss_gen_adv = 0
 		for i in range(1, 5):
+			# Downscaling of ground truth images for loss calculations
 			if i != 4:
 				downscaled_gt = resize_images(gt, (int(h / 2 ** (4 - i)),
 				                                   int(w / 2 ** (4 - i))))
@@ -81,6 +85,7 @@ class Updater(StandardUpdater):
 		report({'DisLoss':total_loss_dis_adv},self.DisNetwork)
 		report({'CompositeGenLoss':composite_gen_loss},self.GenNetwork)
 
+		# TODO: Come up with a more elegant way
 		self.DisNetwork.cleargrads()
 		self.GenNetwork.cleargrads()
 		composite_gen_loss.backward()

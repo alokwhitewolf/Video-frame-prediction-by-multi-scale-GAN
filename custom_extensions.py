@@ -8,4 +8,5 @@ def saveGen(trainer):
 	:param trainer:
 	:return:
 	"""
-	serializers.save_npz('result/GEN.model', trainer.updater.GenNetwork)
+	serializers.save_npz('result/TRAINED_ADVERSARIAL.model', trainer.updater.GenNetwork)
+	print("Model Saved @ iteration number : ",trainer.updater.iteration)
