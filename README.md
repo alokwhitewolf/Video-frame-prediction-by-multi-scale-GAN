@@ -1,5 +1,5 @@
 # Video frame prediction by multi scale GAN
-![Image](media/best.gif)
+![Image](media/best2.gif)
 <br>This is a <a href="https://chainer.org/">Chainer</a> implementation of <a href="https://arxiv.org/pdf/1511.05440.pdf">"Deep Multi Scale Video Prediction Beyond Mean Square Error"</a> by Mathieu, Couprie & LeCun.
 The neural network is trained to predict predict upcoming future frame of the video given past few frames. This project has been influenced by the Tensorflow <a href="https://github.com/dyelax/Adversarial_Video_Generation">implementation</a>
 of the same paper by dyelax. 
