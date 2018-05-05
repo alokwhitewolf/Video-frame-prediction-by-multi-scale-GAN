@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse as ap
 
-def infer(modelpath='TRAINED_ADVERSARIAL.model', no_of_preds = 7):
+def infer(modelpath='result/TRAINED_ADVERSARIAL.model', no_of_preds = 7):
 	"""
 	Visualizes the predictions of the saved model
 
