@@ -35,7 +35,7 @@ The computation graph for predicting the next frame -
 I found it fascinating how the pac man at the top corner took a sharp turn in order to folow the path. 
 
 ## Pre-trained model
-Download the trained Chainer model from <a href='https://drive.google.com/file/d/1rKzksYGUSZpA2A_MB3Jk_yVeglL0VTVf/view'>https://drive.google.com/file/d/1rKzksYGUSZpA2A_MB3Jk_yVeglL0VTVf/view</a>
+Download the trained Chainer model from <a href='https://drive.google.com/file/d/1rKzksYGUSZpA2A_MB3Jk_yVeglL0VTVf/view'>here</a>
 ## How to run
 ### Dependencies
 
