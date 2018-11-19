@@ -9,7 +9,7 @@ The ability of a model to predict future frames requires to build accurate, non 
 predict future images from a video sequence involves the construction of an internal representation that models the
 image evolution accurately, and therefore,  to  some  degree,  its  content  and  dynamics. 
 
-Also, a robust model that can build good internal representations of it's environment can be
+Also, predicting future frames successfuly is a sign of a robust model that can build good internal representations of it's environment
 
 ## Why use GANs ?
 Using an l2 loss, and to a lesser extent l1, produces blurry predicitons, increasingly worsen when predicting further in the future
